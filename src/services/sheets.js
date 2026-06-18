@@ -44,8 +44,9 @@ const S3_ID  = import.meta.env.VITE_MOBILE_SHEET_ID;
 const S3_TAB = import.meta.env.VITE_MOBILE_SHEET_TAB || 'Raw Data';
 
 // Results Sheet — used to check cooldown before submitting
-const RESULTS_ID  = import.meta.env.VITE_RESULTS_SHEET_ID;
-const RESULTS_TAB = import.meta.env.VITE_RESULTS_SHEET_TAB || 'Responses';
+const RESULTS_ID      = import.meta.env.VITE_RESULTS_SHEET_ID;
+const SUBMISSIONS_TAB = 'Submissions'; // lightweight tab: col A=Timestamp, col B=Reg No
+                                       // DO NOT use Responses tab — it has many columns per student
 
 // How many days a student must wait before submitting again.
 // Keep this in sync with COOLDOWN_DAYS in apps-script/Code.gs
@@ -201,27 +202,24 @@ export async function validateStudent(regnoRaw, last4Raw) {
 }
 
 // ── Cooldown check (15-day rolling window) ────────────────────
-// Reads the Results Sheet "Responses" tab and finds this regno's
-// most recent submission. If it was within COOLDOWN_DAYS, the
-// student is blocked until nextEligibleDate.
+// Reads ONLY "Submissions" tab — col A=Timestamp, col B=Reg No
+// One row per student = very fast scan even at 2000+ entries
 async function checkCooldown(regno) {
-  if (!RESULTS_ID) return { blocked: false }; // Not configured — skip
+  if (!RESULTS_ID) return { blocked: false };
 
   try {
-    // skipCache: results change frequently, always get fresh data
-    const rows = await fetchSheet(RESULTS_ID, RESULTS_TAB, { skipCache: true });
+    // Always skip cache — need fresh data every time
+    const rows = await fetchSheet(RESULTS_ID, SUBMISSIONS_TAB, { skipCache: true });
     if (!rows || rows.length < 2) return { blocked: false };
 
-    const headers  = rows[0].map(h => h.trim().toLowerCase());
-    const regnoCol = headers.findIndex(h => h.includes('reg'));
-    const tsCol    = headers.findIndex(h => h.includes('timestamp'));
-    if (regnoCol === -1 || tsCol === -1) return { blocked: false };
-
+    // Submissions tab structure: col 0 = Timestamp, col 1 = Reg No
+    // Find the MOST RECENT submission for this regno
     let lastSubmission = null;
     for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      if ((row[regnoCol] || '').toString().trim().toUpperCase() === regno) {
-        const ts = parseResultTimestamp(row[tsCol]);
+      const row      = rows[i];
+      const rowRegno = (row[1] || '').toString().trim().toUpperCase();
+      if (rowRegno === regno.toUpperCase()) {
+        const ts = parseResultTimestamp(row[0]);
         if (ts && (!lastSubmission || ts > lastSubmission)) {
           lastSubmission = ts;
         }
@@ -230,23 +228,22 @@ async function checkCooldown(regno) {
 
     if (!lastSubmission) return { blocked: false };
 
-    const now           = new Date();
-    const daysSinceLast = (now.getTime() - lastSubmission.getTime()) / (1000 * 60 * 60 * 24);
+    const daysSinceLast = (Date.now() - lastSubmission.getTime()) / (1000 * 60 * 60 * 24);
 
     if (daysSinceLast < COOLDOWN_DAYS) {
       const nextEligible = new Date(lastSubmission.getTime() + COOLDOWN_DAYS * 24 * 60 * 60 * 1000);
       return {
-        blocked: true,
+        blocked:          true,
         lastSubmittedAt:  formatDate(lastSubmission),
         nextEligibleDate: formatDate(nextEligible),
       };
     }
 
     return { blocked: false };
+
   } catch (err) {
-    // If the cooldown check itself fails (e.g. sheet not shared yet),
-    // fail OPEN — don't block students just because this check errored.
-    console.warn('Cooldown check failed, allowing submission:', err);
+    // Fail OPEN — never block genuine students due to a network error
+    console.warn('Cooldown check failed, allowing submission:', err.message);
     return { blocked: false };
   }
 }
@@ -279,13 +276,35 @@ export async function getFacultyForStudent(student) {
 }
 
 // ── PUBLIC: Submit feedback ───────────────────────────────────
-export async function submitFeedback(payload) {
+// Runs a SECOND cooldown check right before webhook call.
+// This is the KEY fix — because no-cors means we can't read
+// the webhook response, so we must check cooldown CLIENT-SIDE
+// before calling the webhook, not rely on webhook response.
+export async function submitFeedback(payload, onCooldown) {
+
+  // ── Second cooldown check right before submit ─────────────
+  // Catches edge case: student logged in (not blocked), filled form
+  // slowly, but another device submitted in between.
+  const cooldown = await checkCooldown(payload.regno);
+  if (cooldown.blocked) {
+    // Tell the caller to show the "Already Submitted" screen
+    if (typeof onCooldown === 'function') {
+      onCooldown({
+        lastSubmittedAt:  cooldown.lastSubmittedAt,
+        nextEligibleDate: cooldown.nextEligibleDate,
+      });
+    }
+    return { success: false, reason: 'cooldown' };
+  }
+
   if (!WEBHOOK) {
     console.log('📋 [DEV] Payload:', JSON.stringify(payload, null, 2));
     await new Promise(r => setTimeout(r, 800));
     return { success: true, dev: true };
   }
 
+  // no-cors — we can't read response body, but cooldown is already
+  // handled above via Sheets API, so this is just a fire-and-write.
   await fetch(WEBHOOK, {
     method:  'POST',
     mode:    'no-cors',
