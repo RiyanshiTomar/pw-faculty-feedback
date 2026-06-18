@@ -41,7 +41,7 @@ export default function App() {
         />
       )}
       {screen === 'welcome'  && <WelcomeScreen  student={student} faculties={faculties} onStart={() => setScreen('feedback')} onBack={handleReset} />}
-      {screen === 'feedback' && <FeedbackForm   student={student} faculties={faculties} onSubmitted={() => setScreen('thankyou')} onBack={() => setScreen('welcome')} />}
+      {screen === 'feedback' && <FeedbackForm   student={student} faculties={faculties} onSubmitted={() => setScreen('thankyou')} onBack={() => setScreen('welcome')} onCooldown={handleCooldown} />}
       {screen === 'thankyou' && <ThankYouScreen onReset={handleReset} />}
       {screen === 'expired'  && <BatchExpiredScreen student={student} reason={expiredReason} onBack={handleReset} />}
       {screen === 'cooldown' && (
