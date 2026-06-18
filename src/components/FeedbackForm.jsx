@@ -24,7 +24,7 @@ function RatingCircles({ value, onChange }) {
   );
 }
 
-export default function FeedbackForm({ student, faculties, onSubmitted, onBack }) {
+export default function FeedbackForm({ student, faculties, onSubmitted, onBack, onCooldown }) {
   const [ratings,     setRatings]     = useState(() => Object.fromEntries(faculties.map((_,i) => [i,0])));
   const [remarks,     setRemarks]     = useState(() => Object.fromEntries(faculties.map((_,i) => [i,''])));
   const [batchRemark, setBatchRemark] = useState('');
@@ -69,11 +69,21 @@ export default function FeedbackForm({ student, faculties, onSubmitted, onBack }
       batch_remark: batchRemark,
     };
     try {
-      await submitFeedback(payload);
+      const result = await submitFeedback(payload, (cooldownInfo) => {
+        // submitFeedback found cooldown BEFORE calling webhook
+        // Navigate to "Already Submitted" screen with dates
+        onCooldown(student, cooldownInfo);
+      });
+
+      if (result?.reason === 'cooldown') {
+        // Screen transition already handled by callback above
+        setSubmitting(false);
+        return;
+      }
+
       onSubmitted();
     } catch(err) {
-      if (err.message === 'already_submitted') { onSubmitted(); }
-      else { setSubmitError('Submission failed. Please check your connection and try again.'); }
+      setSubmitError('Submission failed. Please check your connection and try again.');
     }
     setSubmitting(false);
   }
