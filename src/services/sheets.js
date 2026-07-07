@@ -248,6 +248,10 @@ async function checkCooldown(regno) {
   }
 }
 
+function getScheme(row) {
+  return row.scheme || row.scheme_name || row.scheme_id || '';
+}
+
 // ── PUBLIC: Get faculty list for student ──────────────────────
 export async function getFacultyForStudent(student) {
   const rows      = await fetchSheet(S2_ID, S2_TAB);
@@ -255,14 +259,19 @@ export async function getFacultyForStudent(student) {
 
   const sCourse = (student.course || '').toLowerCase().trim();
   const sCentre = (student.center || '').toLowerCase().trim();
+  const sScheme = (getScheme(student) || '').toLowerCase().trim();
 
   const matched = faculties.filter(f => {
     const fCourse = (f.course  || '').toLowerCase().trim();
     const fCentre = (f.centre  || '').toLowerCase().trim();
+    const fScheme = (getScheme(f) || '').toLowerCase().trim();
     const courseMatch = fCourse === sCourse;
     const centreMatch = !fCentre || fCentre === sCentre;
-    return courseMatch && centreMatch;
+    const schemeMatch = !fScheme || !sScheme || fScheme === sScheme;
+    return courseMatch && centreMatch && schemeMatch;
   });
+
+  
 
   // Deduplicate by Faculty Name + Subject
   const seen = new Set();
