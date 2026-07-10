@@ -88,14 +88,16 @@ function rowsToObjects(rows) {
     return obj;
   });
 }
-
-// Handles all date formats in PW sheets:
-// "2 Nov, 2026" | "25 Sep, 2025" | DD-MM-YYYY | DD/MM/YYYY | ISO
+// PW dump US-locale => month/date/year (M/D/YYYY).
+// Handles: "9/30/2027" | "2 Nov, 2026" | ISO
 function parseDate(str) {
   if (!str) return null;
-  const s = str.trim();
-  const dmy = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
-  if (dmy) return new Date(`${dmy[3]}-${dmy[2].padStart(2,'0')}-${dmy[1].padStart(2,'0')}`);
+  const s = String(str).trim();
+  const mdy = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+  if (mdy) {
+    const month = +mdy[1], day = +mdy[2], year = +mdy[3];
+    return new Date(year, month - 1, day);   // month-1: JS month 0-indexed
+  }
   const mon = s.match(/^(\d{1,2})\s+([A-Za-z]+),?\s+(\d{4})$/);
   if (mon) return new Date(`${mon[2]} ${mon[1]}, ${mon[3]}`);
   return new Date(s);
