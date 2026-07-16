@@ -302,7 +302,7 @@ textarea:focus, .remark-input:focus {
 .welcome-body {
   flex: 1;
   max-width: 760px; width: 100%;
-  margin: 0 auto; padding: 2.5rem 1.5rem 4rem;
+  margin: 0 auto; padding: 1.5rem 1.5rem 2rem;
 }
 
 .welcome-hero {
