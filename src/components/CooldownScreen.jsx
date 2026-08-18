@@ -19,7 +19,7 @@ export default function CooldownScreen({ student, lastSubmittedAt, nextEligibleD
         </div>
         <div className="expired-divider" />
         <p className="expired-note">
-          The feedback form rolls over every 15 days. Please come back after the date above to submit again.
+          The feedback form rolls over every 7 days. Please come back after the date above to submit again.
         </p>
         <button className="btn-secondary" onClick={onBack}>← Back to Login</button>
       </div>
