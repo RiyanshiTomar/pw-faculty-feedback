@@ -50,7 +50,7 @@ const SUBMISSIONS_TAB = 'Submissions'; // lightweight tab: col A=Timestamp, col 
 
 // How many days a student must wait before submitting again.
 // Keep this in sync with COOLDOWN_DAYS in apps-script/Code.gs
-export const COOLDOWN_DAYS = 15;
+export const COOLDOWN_DAYS = 7;
 
 // ── In-memory cache per session ───────────────────────────────
 const _cache = {};
