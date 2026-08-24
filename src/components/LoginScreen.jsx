@@ -31,7 +31,7 @@ export default function LoginScreen({ onValidated, onBatchExpired, onCooldown })
     try {
       const result = await validateStudent(regno.trim(), phone4.trim());
       if (!result.valid) {
-        if (result.reason === 'batch_expired' || result.reason === 'batch_not_started') {
+       if (result.reason === 'batch_expired' || result.reason === 'batch_not_started' || result.reason === 'no_batch'){
           onBatchExpired(result.student, result.reason);
         } else if (result.reason === 'cooldown') {
           onCooldown(result.student, {
