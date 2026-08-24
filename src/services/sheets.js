@@ -302,20 +302,34 @@ export async function submitFeedback(payload, onCooldown) {
     return { success: false, reason: 'cooldown' };
   }
 
-  if (!WEBHOOK) {
-    console.log('📋 [DEV] Payload:', JSON.stringify(payload, null, 2));
-    await new Promise(r => setTimeout(r, 800));
-    return { success: true, dev: true };
-  }
+if (!WEBHOOK) {
+  console.log('📋 [DEV] Payload:', JSON.stringify(payload, null, 2));
+  await new Promise(r => setTimeout(r, 800));
+  return { success: true, dev: true };
+}
 
-  // no-cors — we can't read response body, but cooldown is already
-  // handled above via Sheets API, so this is just a fire-and-write.
-  await fetch(WEBHOOK, {
+try {
+  const response = await fetch(WEBHOOK, {
     method:  'POST',
-    mode:    'no-cors',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body:    JSON.stringify(payload),
   });
 
+  const result = await response.json();
+
+  if (result.reason === 'cooldown') {
+    if (typeof onCooldown === 'function') {
+      onCooldown({
+        lastSubmittedAt:  result.lastSubmittedAt,
+        nextEligibleDate: result.nextEligibleDate,
+      });
+    }
+    return { success: false, reason: 'cooldown' };
+  }
+
+  return { success: !!result.success };
+
+} catch (err) {
+  console.warn('Webhook response could not be read, assuming success:', err.message);
   return { success: true };
 }
