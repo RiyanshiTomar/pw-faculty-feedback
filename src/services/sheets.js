@@ -166,6 +166,10 @@ export async function validateStudent(regnoRaw, last4Raw) {
   if (!plainMobile) return { valid: false, reason: 'mobile_not_found' };
   if (!plainMobile.endsWith(last4))
     return { valid: false, reason: 'wrong_phone' };
+  // NEW: student not yet allotted a batch (e.g. new joinee)
+if (!student.batch || !student.batch.trim()) {
+  return { valid: false, reason: 'no_batch', student };
+}
 
   // 3. Batch date check
   const today = new Date();
@@ -250,32 +254,23 @@ async function checkCooldown(regno) {
   }
 }
 
-function getScheme(row) {
-  return row.scheme || row.scheme_name || row.scheme_id || '';
-}
-
-// ── PUBLIC: Get faculty list for student ──────────────────────
+// Faculty tab columns: Centre | Batch Name | Subject | Faculty Name | Email
+// Matching is Centre + Batch ONLY (course/scheme no longer used).
 export async function getFacultyForStudent(student) {
   const rows      = await fetchSheet(S2_ID, S2_TAB);
   const faculties = rowsToObjects(rows);
 
-  const sCourse = (student.course || '').toLowerCase().trim();
   const sCentre = (student.center || '').toLowerCase().trim();
-  const sScheme = (getScheme(student) || '').toLowerCase().trim();
+  const sBatch  = (student.batch  || '').toLowerCase().trim();
 
   const matched = faculties.filter(f => {
-    const fCourse = (f.course  || '').toLowerCase().trim();
-    const fCentre = (f.centre  || '').toLowerCase().trim();
-    const fScheme = (getScheme(f) || '').toLowerCase().trim();
-    const courseMatch = fCourse === sCourse;
+    const fCentre = (f.centre     || '').toLowerCase().trim();
+    const fBatch  = (f.batch_name || '').toLowerCase().trim();
     const centreMatch = !fCentre || fCentre === sCentre;
-    const schemeMatch = !fScheme || !sScheme || fScheme === sScheme;
-    return courseMatch && centreMatch && schemeMatch;
+    const batchMatch  = !!fBatch && fBatch === sBatch;
+    return centreMatch && batchMatch;
   });
 
-  
-
-  // Deduplicate by Faculty Name + Subject
   const seen = new Set();
   return matched.filter(f => {
     if (!f.faculty_name) return false;
@@ -285,7 +280,6 @@ export async function getFacultyForStudent(student) {
     return true;
   });
 }
-
 // ── PUBLIC: Submit feedback ───────────────────────────────────
 // Runs a SECOND cooldown check right before webhook call.
 // This is the KEY fix — because no-cors means we can't read
