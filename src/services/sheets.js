@@ -333,3 +333,4 @@ try {
   console.warn('Webhook response could not be read, assuming success:', err.message);
   return { success: true };
 }
+}
