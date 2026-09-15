@@ -80,13 +80,36 @@ async function fetchSheet(id, tab, { skipCache = false } = {}) {
 function rowsToObjects(rows) {
   if (!rows || rows.length < 2) return [];
   const headers = rows[0].map(h =>
-    h.trim().toLowerCase().replace(/\s+/g, '_')
+   String(h || '')
+  .replace(/^\uFEFF/, '')
+  .trim()
+  .toLowerCase()
+  .replace(/\s+/g, '_')
   );
   return rows.slice(1).map(row => {
     const obj = {};
-    headers.forEach((h, i) => { obj[h] = (row[i] || '').trim(); });
+   headers.forEach((h, i) => {
+  obj[h] = String(row[i] ?? '').trim();
+});
     return obj;
   });
+}
+function normaliseRegno(value) {
+  return String(value ?? '')
+    .replace(/^\uFEFF/, '')
+    .trim()
+    .toUpperCase()
+    .replace(/\.0$/, '');
+}
+
+function firstValue(row, keys) {
+  for (const key of keys) {
+    const value = row[key];
+    if (value !== undefined && value !== null && String(value).trim()) {
+      return String(value).trim();
+    }
+  }
+  return '';
 }
 // PW dump US-locale => month/date/year (M/D/YYYY).
 // Handles: "9/30/2027" | "2 Nov, 2026" | ISO
@@ -147,22 +170,42 @@ export async function validateStudent(regnoRaw, last4Raw) {
 
   // 1. Find student in Sheet 1
   const students = rowsToObjects(s1rows);
-  const student  = students.find(
-    s => (s.regno || '').toUpperCase() === regno
-  );
+  const student = students.find(
+  s => normaliseRegno(firstValue(s, [
+    'regno',
+    'erp',
+    'registration_no',
+    'registration_number',
+    'registration',
+  ])) === regno
+);
   if (!student) return { valid: false, reason: 'not_found' };
 
   // 2. Find phone in Sheet 3
   // Sheet 3 headers: regno | mobile_no | Phone_number
   // Read by header name — "phone_number" after normalisation
   const phoneData = rowsToObjects(s3rows);
-  const phoneRow  = phoneData.find(
-    r => (r.regno || '').toUpperCase() === regno
-  );
+  
+ const phoneRow = phoneData.find(
+  r => normaliseRegno(firstValue(r, [
+    'regno',
+    'erp',
+    'registration_no',
+    'registration_number',
+    'registration',
+  ])) === regno
+);
   if (!phoneRow) return { valid: false, reason: 'mobile_not_found' };
 
   // "Phone_number" normalises to "phone_number"
-  const plainMobile = (phoneRow.phone_number || '').replace(/\D/g, '');
+ const plainMobile = firstValue(phoneRow, [
+  'phone_number',
+  'phone_no',
+  'mobile_number',
+  'mobile_no',
+  'mobile',
+  'phone',
+]).replace(/\D/g, '');
   if (!plainMobile) return { valid: false, reason: 'mobile_not_found' };
   if (!plainMobile.endsWith(last4))
     return { valid: false, reason: 'wrong_phone' };
