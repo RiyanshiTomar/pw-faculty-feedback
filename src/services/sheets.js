@@ -41,7 +41,7 @@ const S2_TAB = import.meta.env.VITE_FACULTY_SHEET_TAB || 'Sheet3';
 
 // Sheet 3 — Mobile unmask (regno | hash | Phone_number)
 const S3_ID  = import.meta.env.VITE_MOBILE_SHEET_ID;
-const S3_TAB = import.meta.env.VITE_MOBILE_SHEET_TAB || 'Raw Data';
+const S3_TAB = import.meta.env.VITE_MOBILE_SHEET_TAB || 'Student Phone No';
 
 // Results Sheet — used to check cooldown before submitting
 const RESULTS_ID      = import.meta.env.VITE_RESULTS_SHEET_ID;
