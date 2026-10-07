@@ -173,6 +173,7 @@ export async function validateStudent(regnoRaw, last4Raw) {
   const student = students.find(
   s => normaliseRegno(firstValue(s, [
     'regno',
+    'reg_no',      // <-- add
     'erp',
     'registration_no',
     'registration_number',
@@ -189,6 +190,7 @@ export async function validateStudent(regnoRaw, last4Raw) {
  const phoneRow = phoneData.find(
   r => normaliseRegno(firstValue(r, [
     'regno',
+    'reg_no',      // <-- add
     'erp',
     'registration_no',
     'registration_number',
