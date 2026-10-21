@@ -182,6 +182,11 @@ export async function validateStudent(regnoRaw, last4Raw) {
 );
   if (!student) return { valid: false, reason: 'not_found' };
 
+  
+  student.regno        = regno;
+  student.student_name = firstValue(student, ['student_name', 'name', 'student', 'full_name']);
+  student.center       = firstValue(student, ['center', 'centre']);
+
   // 2. Find phone in Sheet 3
   // Sheet 3 headers: regno | mobile_no | Phone_number
   // Read by header name — "phone_number" after normalisation
@@ -372,10 +377,14 @@ try {
     return { success: false, reason: 'cooldown' };
   }
 
-  return { success: !!result.success };
+   if (!result.success) {
+    console.error('Webhook rejected submission:', result);
+    return { success: false, error: result.error || 'webhook_rejected' };
+  }
+  return { success: true };
 
 } catch (err) {
-  console.warn('Webhook response could not be read, assuming success:', err.message);
-  return { success: true };
+  console.error('Webhook call failed:', err);
+  return { success: false, error: err.message };
 }
 }
