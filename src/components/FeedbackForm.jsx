@@ -81,6 +81,12 @@ export default function FeedbackForm({ student, faculties, onSubmitted, onBack, 
         return;
       }
 
+      if (!result?.success) {
+        setSubmitError('Your feedback could not be saved. Please try again in a moment.');
+        setSubmitting(false);
+        return;
+      }
+
       onSubmitted();
     } catch(err) {
       setSubmitError('Submission failed. Please check your connection and try again.');
